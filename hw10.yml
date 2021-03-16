@@ -1,0 +1,133 @@
+---
+- hosts: [all]
+  become: true
+  vars:
+    remote_dir: /srv/ftp
+    create_containers: 3
+    default_container_name: docker
+    default_container_image: ubuntu
+    default_container_command: sleep 1d
+  tasks:
+  - name: OS and Kernel info
+    vars:
+      msg: |
+        Distribution: {{ ansible_distribution }}
+        Release: {{ ansible_distribution_release }}
+        Distribution Version: {{ ansible_distribution_version }}
+        Kernel: {{ ansible_kernel }}
+        Architecture: {{ ansible_architecture }}
+    debug:
+      msg: "{{ msg.split('\n') }}"
+  - name: Update apt-get repo and cache
+    apt: update_cache=yes force_apt_get=yes cache_valid_time=3600
+  - name: ensure nginx is at the latest version
+    apt: name=nginx state=latest
+  - name: Create group students
+    group:
+      name: new_users
+      state: present
+  - name: Adding user {{ user }}
+    user:
+      name: new_user
+      shell: /bin/bash
+      password: $6$saltstring$adDbXsJjcDlq2662QPgd.tkSOVmnG9Tt3oXl4HR60SusC3AGjirnDenVZp3DGwLwqy6iYKCzannhaX9D>
+      groups: new_users
+      append: yes
+      
+- name: Creates directory
+    file:
+      path: /src/dir
+      state: directory
+      owner: new_user
+      group: new_users
+      mode: 0775
+      recurse: yes
+  - name: Copy file with owner and permissions
+    ansible.builtin.copy:
+      src: hello_world.file
+      dest: /src/dir/hello_world.file
+      owner: new_user
+      group: new_users
+      mode: '0644'
+  - name: "Uninstall NginX"
+    apt:
+      name: nginx
+      state: absent
+  - name: "Stop Nginx Services"
+    service:
+      name: nginx
+      state: stopped
+  - name: Remove Users
+    user:
+      name: new_user
+      state: absent
+      remove: yes
+
+  - name: Remove file (delete file)
+    ansible.builtin.file:
+      path: /src/dir/hello_world.file
+      state: absent
+  - name: Install required system packages
+    apt: name={{ item }} state=latest update_cache=yes
+    loop: [ 'apt-transport-https', 'ca-certificates', 'curl', 'software-properties-common', 'python3-pip', 'virtua>
+  - name: Add Docker GPG apt Key
+    apt_key:
+      url: https://download.docker.com/linux/ubuntu/gpg
+      state: present
+  - name: Add Docker Repository
+    apt_repository:
+      repo: deb https://download.docker.com/linux/ubuntu xenial stable
+  - name: pull an image
+    docker_image:
+      name: pacur/centos-7
+      source: pull
+  - name: Create default containers
+    docker_container:
+      name: "{{ default_container_name }}{{ item }}"
+      image: "{{ default_container_image }}"
+      command: "{{ default_container_command }}"
+      state: present
+    with_sequence: count={{ create_containers }}
+    
+
+  - name: установим vsftpd
+    apt:
+      name: vsftpd
+      update_cache: no
+      state: present
+  - name: Добавляем пользователя vsftp
+    user:
+      name: ftpu01
+      group: ftp
+      shell: /bin/false
+      home: /srv/ftp
+      password: ""
+      state: present
+  - name: создание каталога
+    file:
+      path: "{{ remote_dir }}"
+      state: directory
+      owner: ftpu01
+      group: ftp
+      mode: 0770
+      recurse: yes
+  - name: конфиг
+    blockinfile:
+      path: /etc/vsftpd.conf
+      create: yes
+      marker: ""
+      block: |
+        listen=YES
+        anonymous_enable=YES
+          - name: перегрузить vsftpd
+    service:
+      name: vsftpd
+      state: restarted
+  - name: Start service httpd, if not started
+    ansible.builtin.service:
+      name: httpd
+      state: started
+  - name: Check that you can connect (GET) to a page and it returns a status 200
+    uri:
+      url: https://levelp.ru/
+
